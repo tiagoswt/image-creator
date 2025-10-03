@@ -625,3 +625,4 @@ def create_processor(
         enable_shadow_removal=enable_shadow_removal,
         enable_smart_crop=enable_smart_crop,
     )
+
