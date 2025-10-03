@@ -127,7 +127,7 @@ def main():
 
         enable_shadow_removal = st.checkbox(
             "Enable Shadow Removal",
-            value=True,
+            value=False,
             help="Detect and remove shadows from products"
         )
 
@@ -360,6 +360,33 @@ def main():
             for result in st.session_state.results:
                 if result['status'] == 'success':
                     with st.expander(f"🔍 {result['filename']}"):
+                        # Show intermediate steps if available
+                        if 'intermediate_paths' in result and result['intermediate_paths']:
+                            st.markdown("### 📊 Processing Steps")
+
+                            # Define step labels
+                            step_labels = {
+                                'background_removed': '1️⃣ Background Removed',
+                                'shadow_removed': '2️⃣ Shadow Removed',
+                                'cropped': '3️⃣ Smart Cropped',
+                                'resized': '4️⃣ Resized & Centered'
+                            }
+
+                            # Display intermediate steps in grid
+                            intermediate = result['intermediate_paths']
+                            num_steps = len(intermediate)
+                            cols_per_row = 2
+
+                            for i, (step_key, step_path) in enumerate(intermediate.items()):
+                                if i % cols_per_row == 0:
+                                    cols = st.columns(cols_per_row)
+
+                                with cols[i % cols_per_row]:
+                                    st.markdown(f"**{step_labels.get(step_key, step_key)}**")
+                                    if os.path.exists(step_path):
+                                        st.image(step_path, use_container_width=True)
+
+                        st.markdown("### 🔄 Before & After")
                         col_before, col_after = st.columns(2)
 
                         with col_before:
@@ -394,3 +421,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
