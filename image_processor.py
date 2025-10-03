@@ -23,12 +23,21 @@ class ImageProcessor:
     _birefnet_model = None
     _birefnet_transform = None
 
-    def __init__(self, target_size: int = 1000, background_color: Tuple[int, int, int] = (255, 255, 255),
-                 padding_percent: float = 5.0, crop_tightness: str = 'normal',
-                 enable_shadow_removal: bool = True, enable_smart_crop: bool = True,
-                 save_intermediate: bool = False, intermediate_dir: str = "temp",
-                 bg_model: str = 'u2net', alpha_matting: bool = False, post_process: bool = True,
-                 hf_api_token: Optional[str] = None):
+    def __init__(
+        self,
+        target_size: int = 1000,
+        background_color: Tuple[int, int, int] = (255, 255, 255),
+        padding_percent: float = 5.0,
+        crop_tightness: str = "normal",
+        enable_shadow_removal: bool = True,
+        enable_smart_crop: bool = True,
+        save_intermediate: bool = False,
+        intermediate_dir: str = "temp",
+        bg_model: str = "u2net",
+        alpha_matting: bool = False,
+        post_process: bool = True,
+        hf_api_token: Optional[str] = None,
+    ):
         """
         Initialize the image processor
 
@@ -86,17 +95,21 @@ class ImageProcessor:
             # Step 1: Remove background
             img_no_bg = self._remove_background(img)
             if self.save_intermediate:
-                step1_path = os.path.join(self.intermediate_dir, f"{base_name}_1_bg_removed.png")
-                img_no_bg.save(step1_path, 'PNG')
-                intermediate_paths['bg_removed'] = step1_path
+                step1_path = os.path.join(
+                    self.intermediate_dir, f"{base_name}_1_bg_removed.png"
+                )
+                img_no_bg.save(step1_path, "PNG")
+                intermediate_paths["bg_removed"] = step1_path
 
             # Step 2: Remove shadows (optional)
             if self.enable_shadow_removal:
                 img_no_shadow = self._remove_shadows(img_no_bg)
                 if self.save_intermediate:
-                    step2_path = os.path.join(self.intermediate_dir, f"{base_name}_2_no_shadow.png")
-                    img_no_shadow.save(step2_path, 'PNG')
-                    intermediate_paths['no_shadow'] = step2_path
+                    step2_path = os.path.join(
+                        self.intermediate_dir, f"{base_name}_2_no_shadow.png"
+                    )
+                    img_no_shadow.save(step2_path, "PNG")
+                    intermediate_paths["no_shadow"] = step2_path
             else:
                 img_no_shadow = img_no_bg
 
@@ -108,37 +121,39 @@ class ImageProcessor:
                 img_cropped = self._simple_crop(img_no_shadow)
 
             if self.save_intermediate:
-                step3_path = os.path.join(self.intermediate_dir, f"{base_name}_3_cropped.png")
-                img_cropped.save(step3_path, 'PNG')
-                intermediate_paths['cropped'] = step3_path
+                step3_path = os.path.join(
+                    self.intermediate_dir, f"{base_name}_3_cropped.png"
+                )
+                img_cropped.save(step3_path, "PNG")
+                intermediate_paths["cropped"] = step3_path
 
             # Step 4: Resize with aspect ratio preservation
             img_final = self._resize_with_padding(img_cropped)
             if self.save_intermediate:
-                step4_path = os.path.join(self.intermediate_dir, f"{base_name}_4_resized.png")
-                img_final.save(step4_path, 'PNG')
-                intermediate_paths['resized'] = step4_path
+                step4_path = os.path.join(
+                    self.intermediate_dir, f"{base_name}_4_resized.png"
+                )
+                img_final.save(step4_path, "PNG")
+                intermediate_paths["resized"] = step4_path
 
             # Step 5: Enhance quality
             img_final = self._enhance_image(img_final)
 
             # Save processed image
-            img_final.save(output_path, 'PNG', quality=95)
+            img_final.save(output_path, "PNG", quality=95)
 
             return {
-                'status': 'success',
-                'original_size': original_size,
-                'final_size': img_final.size,
-                'output_path': output_path,
-                'intermediate_paths': intermediate_paths if self.save_intermediate else {}
+                "status": "success",
+                "original_size": original_size,
+                "final_size": img_final.size,
+                "output_path": output_path,
+                "intermediate_paths": (
+                    intermediate_paths if self.save_intermediate else {}
+                ),
             }
 
         except Exception as e:
-            return {
-                'status': 'error',
-                'error': str(e),
-                'output_path': None
-            }
+            return {"status": "error", "error": str(e), "output_path": None}
 
     def _init_birefnet(self):
         """Initialize BiRefNet model (lazy loading)"""
@@ -149,18 +164,22 @@ class ImageProcessor:
             device = "cuda" if torch.cuda.is_available() else "cpu"
 
             # Load model
-            ImageProcessor._birefnet_model = AutoModelForImageSegmentation.from_pretrained(
-                "ZhengPeng7/BiRefNet", trust_remote_code=True
+            ImageProcessor._birefnet_model = (
+                AutoModelForImageSegmentation.from_pretrained(
+                    "ZhengPeng7/BiRefNet", trust_remote_code=True
+                )
             )
             ImageProcessor._birefnet_model.to(device)
             ImageProcessor._birefnet_model.eval()
 
             # Set up transform
-            ImageProcessor._birefnet_transform = transforms.Compose([
-                transforms.Resize((1024, 1024)),
-                transforms.ToTensor(),
-                transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
-            ])
+            ImageProcessor._birefnet_transform = transforms.Compose(
+                [
+                    transforms.Resize((1024, 1024)),
+                    transforms.ToTensor(),
+                    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+                ]
+            )
 
     def _remove_background_birefnet(self, img: Image.Image) -> Image.Image:
         """
@@ -179,7 +198,9 @@ class ImageProcessor:
         image_size = img_rgb.size
 
         # Transform image
-        input_images = ImageProcessor._birefnet_transform(img_rgb).unsqueeze(0).to(device)
+        input_images = (
+            ImageProcessor._birefnet_transform(img_rgb).unsqueeze(0).to(device)
+        )
 
         # Prediction
         with torch.no_grad():
@@ -207,11 +228,9 @@ class ImageProcessor:
         from transformers import pipeline
 
         # Load pipeline (cached after first use)
-        if not hasattr(self, '_rmbg_pipeline'):
+        if not hasattr(self, "_rmbg_pipeline"):
             self._rmbg_pipeline = pipeline(
-                "image-segmentation",
-                model="briaai/RMBG-1.4",
-                trust_remote_code=True
+                "image-segmentation", model="briaai/RMBG-1.4", trust_remote_code=True
             )
 
         # Get segmentation result
@@ -221,35 +240,35 @@ class ImageProcessor:
         # RMBG-1.4 returns the image directly with transparent background
         if isinstance(result, Image.Image):
             # Ensure RGBA mode
-            if result.mode != 'RGBA':
-                result = result.convert('RGBA')
+            if result.mode != "RGBA":
+                result = result.convert("RGBA")
             return result
         elif isinstance(result, list) and len(result) > 0:
             # If it's a list, take first result
             output = result[0]
-            if isinstance(output, dict) and 'mask' in output:
-                mask = output['mask']
-                img_rgb = img.convert('RGB')
+            if isinstance(output, dict) and "mask" in output:
+                mask = output["mask"]
+                img_rgb = img.convert("RGB")
 
                 # Resize mask if needed
                 if mask.size != img_rgb.size:
                     mask = mask.resize(img_rgb.size, Image.Resampling.LANCZOS)
 
                 # Convert mask to grayscale
-                if mask.mode != 'L':
-                    mask = mask.convert('L')
+                if mask.mode != "L":
+                    mask = mask.convert("L")
 
                 # Apply mask as alpha channel
                 img_rgb.putalpha(mask)
                 return img_rgb
             else:
                 # Return the output as-is
-                if output.mode != 'RGBA':
-                    output = output.convert('RGBA')
+                if output.mode != "RGBA":
+                    output = output.convert("RGBA")
                 return output
         else:
             # Fallback: return original with full alpha
-            img_rgba = img.convert('RGBA')
+            img_rgba = img.convert("RGBA")
             return img_rgba
 
     def _remove_background(self, img: Image.Image) -> Image.Image:
@@ -263,7 +282,7 @@ class ImageProcessor:
             Image with transparent background
         """
         # Use RMBG-1.4 if selected
-        if self.bg_model == 'rmbg-1.4':
+        if self.bg_model == "rmbg-1.4":
             # Use transformers pipeline (works locally, no GPU required for inference)
             return self._remove_background_rmbg_pipeline(img)
 
@@ -273,23 +292,22 @@ class ImageProcessor:
 
         # Convert to bytes for rembg
         img_byte_arr = io.BytesIO()
-        img.save(img_byte_arr, format='PNG')
+        img.save(img_byte_arr, format="PNG")
         img_byte_arr = img_byte_arr.getvalue()
 
         # Build remove() parameters
-        remove_params = {
-            'session': session,
-            'post_process_mask': self.post_process
-        }
+        remove_params = {"session": session, "post_process_mask": self.post_process}
 
         # Add alpha matting parameters if enabled
         if self.alpha_matting:
-            remove_params.update({
-                'alpha_matting': True,
-                'alpha_matting_foreground_threshold': 240,
-                'alpha_matting_background_threshold': 10,
-                'alpha_matting_erode_size': 10
-            })
+            remove_params.update(
+                {
+                    "alpha_matting": True,
+                    "alpha_matting_foreground_threshold": 240,
+                    "alpha_matting_background_threshold": 10,
+                    "alpha_matting_erode_size": 10,
+                }
+            )
 
         # Remove background with configured parameters
         output = remove(img_byte_arr, **remove_params)
@@ -298,8 +316,8 @@ class ImageProcessor:
         img_no_bg = Image.open(io.BytesIO(output))
 
         # Ensure RGBA mode
-        if img_no_bg.mode != 'RGBA':
-            img_no_bg = img_no_bg.convert('RGBA')
+        if img_no_bg.mode != "RGBA":
+            img_no_bg = img_no_bg.convert("RGBA")
 
         return img_no_bg
 
@@ -322,7 +340,9 @@ class ImageProcessor:
             alpha = img_array[:, :, 3]
         else:
             rgb = img_array
-            alpha = np.ones((img_array.shape[0], img_array.shape[1]), dtype=np.uint8) * 255
+            alpha = (
+                np.ones((img_array.shape[0], img_array.shape[1]), dtype=np.uint8) * 255
+            )
 
         # Convert to HSV for better shadow detection
         hsv = cv2.cvtColor(rgb, cv2.COLOR_RGB2HSV)
@@ -342,7 +362,7 @@ class ImageProcessor:
         img_array_enhanced = np.dstack([rgb_enhanced, alpha])
 
         # Convert back to PIL Image
-        img_no_shadow = Image.fromarray(img_array_enhanced, 'RGBA')
+        img_no_shadow = Image.fromarray(img_array_enhanced, "RGBA")
 
         return img_no_shadow
 
@@ -370,14 +390,18 @@ class ImageProcessor:
         alpha_cleaned = cv2.morphologyEx(alpha, cv2.MORPH_CLOSE, kernel, iterations=2)
 
         # Remove small noise
-        alpha_cleaned = cv2.morphologyEx(alpha_cleaned, cv2.MORPH_OPEN, kernel, iterations=1)
+        alpha_cleaned = cv2.morphologyEx(
+            alpha_cleaned, cv2.MORPH_OPEN, kernel, iterations=1
+        )
 
         # Apply threshold to get binary mask
         # Use adaptive threshold to handle varying transparency
         _, binary_mask = cv2.threshold(alpha_cleaned, 25, 255, cv2.THRESH_BINARY)
 
         # Find contours in the binary mask
-        contours, _ = cv2.findContours(binary_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        contours, _ = cv2.findContours(
+            binary_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+        )
 
         if not contours:
             # Fallback to simple alpha detection if no contours found
@@ -403,9 +427,9 @@ class ImageProcessor:
         height, width = img_array.shape[:2]
 
         # Adjust padding based on tightness setting
-        if self.crop_tightness == 'tight':
+        if self.crop_tightness == "tight":
             padding_multiplier = 0.5  # Less padding
-        elif self.crop_tightness == 'loose':
+        elif self.crop_tightness == "loose":
             padding_multiplier = 1.5  # More padding
         else:  # normal
             padding_multiplier = 1.0
@@ -499,14 +523,20 @@ class ImageProcessor:
         img_resized = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
 
         # Create new image with target size and background color
-        new_img = Image.new('RGB', (self.target_size, self.target_size), self.background_color)
+        new_img = Image.new(
+            "RGB", (self.target_size, self.target_size), self.background_color
+        )
 
         # Calculate position to paste (center)
         paste_x = (self.target_size - new_width) // 2
         paste_y = (self.target_size - new_height) // 2
 
         # Paste resized image onto background
-        new_img.paste(img_resized, (paste_x, paste_y), img_resized if img_resized.mode == 'RGBA' else None)
+        new_img.paste(
+            img_resized,
+            (paste_x, paste_y),
+            img_resized if img_resized.mode == "RGBA" else None,
+        )
 
         return new_img
 
@@ -525,7 +555,7 @@ class ImageProcessor:
 
         # Slight contrast enhancement
         enhancer = ImageEnhance.Contrast(img)
-        img = enhancer.enhance(1.1)
+        img = enhancer.enhance(1.10)
 
         # Slight color saturation
         enhancer = ImageEnhance.Color(img)
@@ -550,7 +580,7 @@ class ImageProcessor:
         os.makedirs(output_dir, exist_ok=True)
 
         # Supported image formats
-        supported_formats = {'.jpg', '.jpeg', '.png', '.webp', '.bmp'}
+        supported_formats = {".jpg", ".jpeg", ".png", ".webp", ".bmp"}
 
         # Process each image
         for filename in os.listdir(input_dir):
@@ -562,15 +592,19 @@ class ImageProcessor:
                 output_path = os.path.join(output_dir, output_filename)
 
                 result = self.process_image(input_path, output_path)
-                result['filename'] = filename
+                result["filename"] = filename
                 results.append(result)
 
         return results
 
 
-def create_processor(target_size: int = 1000, padding_percent: float = 5.0,
-                    crop_tightness: str = 'normal', enable_shadow_removal: bool = True,
-                    enable_smart_crop: bool = True) -> ImageProcessor:
+def create_processor(
+    target_size: int = 1000,
+    padding_percent: float = 5.0,
+    crop_tightness: str = "normal",
+    enable_shadow_removal: bool = True,
+    enable_smart_crop: bool = True,
+) -> ImageProcessor:
     """
     Factory function to create an ImageProcessor instance
 
@@ -584,7 +618,10 @@ def create_processor(target_size: int = 1000, padding_percent: float = 5.0,
     Returns:
         ImageProcessor instance
     """
-    return ImageProcessor(target_size=target_size, padding_percent=padding_percent,
-                         crop_tightness=crop_tightness,
-                         enable_shadow_removal=enable_shadow_removal,
-                         enable_smart_crop=enable_smart_crop)
+    return ImageProcessor(
+        target_size=target_size,
+        padding_percent=padding_percent,
+        crop_tightness=crop_tightness,
+        enable_shadow_removal=enable_shadow_removal,
+        enable_smart_crop=enable_smart_crop,
+    )
