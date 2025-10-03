@@ -1,0 +1,16 @@
+[server]
+maxMessageSize = 200
+enableWebsocketCompression = false
+maxUploadSize = 200
+
+[runner]
+# Disable timeout for long-running operations
+fastReruns = false
+
+[browser]
+serverAddress = "localhost"
+gatherUsageStats = false
+
+# Increase timeouts
+[client]
+showErrorDetails = true
